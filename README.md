@@ -1,19 +1,11 @@
 # Lista de afazeres
 
-A new Flutter project created with FlutLab - https://flutlab.io
+O código fornecido implementa uma aplicação Flutter simples chamada To-Do List, que permite ao usuário gerenciar uma lista de tarefas. A aplicação permite adicionar, editar, remover e marcar tarefas como concluídas. Além disso, ele inclui funcionalidades para persistir as tarefas localmente usando o pacote shared_preferences, garantindo que as tarefas sejam salvas mesmo após o fechamento do aplicativo.
 
-## Getting Started
-
-A few resources to get you started if this is your first Flutter project:
-
-- https://flutter.dev/docs/get-started/codelab
-- https://flutter.dev/docs/cookbook
-
-For help getting started with Flutter, view our
-https://flutter.dev/docs, which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
-
-## Getting Started: FlutLab - Flutter Online IDE
-
-- How to use FlutLab? Please, view our https://flutlab.io/docs
-- Join the discussion and conversation on https://flutlab.io/residents
+Funcionalidades principais:
+Adicionar Tarefas: O usuário pode inserir novas tarefas e categorizá-las, com a opção de adicioná-las à lista.
+Editar Tarefas: O usuário pode editar tarefas existentes, alterando seu conteúdo.
+Remover Tarefas: É possível excluir tarefas da lista.
+Marcar como Concluída: O usuário pode marcar uma tarefa como concluída, o que faz com que a tarefa apareça com um estilo de texto tachado.
+Persistência de Dados: As tarefas são salvas localmente utilizando o pacote shared_preferences, garantindo que, ao reiniciar o aplicativo, as tarefas previamente salvas sejam carregadas novamente.
+Filtragem por Categoria: O app permite que o usuário filtre as tarefas por categoria, exibindo somente as tarefas pertencentes à categoria selecionada.
