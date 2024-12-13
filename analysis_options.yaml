@@ -1,28 +1,284 @@
-# This file configures the analyzer, which statically analyzes Dart code to
-# check for errors, warnings, and lints.
-#
-# The issues identified by the analyzer are surfaced in the UI of Dart-enabled
-# IDEs (https://dart.dev/tools#ides-and-editors). The analyzer can also be
-# invoked from the command line by running `flutter analyze`.
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
+import 'package:flutter/services.dart';
 
-# The following line activates a set of recommended lints for Flutter apps,
-# packages, and plugins designed to encourage good coding practices.
-include: package:flutter_lints/flutter.yaml
+void main() {
+  runApp(AppToDo());
+}
 
-linter:
-  # The lint rules applied to this project can be customized in the
-  # section below to disable rules from the `package:flutter_lints/flutter.yaml`
-  # included above or to enable additional rules. A list of all available lints
-  # and their documentation is published at https://dart.dev/lints.
-  #
-  # Instead of disabling a lint rule for the entire project in the
-  # section below, it can also be suppressed for a single line of code
-  # or a specific dart file by using the `// ignore: name_of_lint` and
-  # `// ignore_for_file: name_of_lint` syntax on the line or in the file
-  # producing the lint.
-  rules:
-    # avoid_print: false  # Uncomment to disable the `avoid_print` rule
-    # prefer_single_quotes: true  # Uncomment to enable the `prefer_single_quotes` rule
+class AppToDo extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Lista de Afazeres',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+        backgroundColor: Colors.grey[100],
+        textTheme: TextTheme(
+          bodyText2: TextStyle(color: Colors.black87),
+        ),
+      ),
+      home: PaginaPrincipal(),
+    );
+  }
+}
 
-# Additional information about this file can be found at
-# https://dart.dev/guides/language/analysis-options
+class PaginaPrincipal extends StatefulWidget {
+  @override
+  _PaginaPrincipalState createState() => _PaginaPrincipalState();
+}
+
+class _PaginaPrincipalState extends State<PaginaPrincipal> {
+  final List<Map<String, dynamic>> _tarefas = [];
+  final TextEditingController _controleTarefa = TextEditingController();
+  final TextEditingController _controleCategoria = TextEditingController();
+
+  String _filtroCategoria = "Todas";
+  static const plataforma = MethodChannel('com.example.todo/native');
+
+  @override
+  void initState() {
+    super.initState();
+    _carregarTarefas();
+  }
+
+  Future<void> _carregarTarefas() async {
+    final prefs = await SharedPreferences.getInstance();
+    final tarefasString = prefs.getString('tarefas') ?? '[]';
+    setState(() {
+      _tarefas
+          .addAll(List<Map<String, dynamic>>.from(json.decode(tarefasString)));
+    });
+  }
+
+  Future<void> _salvarTarefas() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('tarefas', json.encode(_tarefas));
+  }
+
+  Future<void> _adicionarTarefa(String tarefa, String categoria) async {
+    try {
+      final resposta = await http
+          .get(Uri.parse('https://jsonplaceholder.typicode.com/posts/1'));
+      if (resposta.statusCode == 200) {
+        setState(() {
+          _tarefas.add({
+            'tarefa': tarefa,
+            'categoria': categoria,
+            'completada': false,
+            'data': DateTime.now().toIso8601String(),
+          });
+        });
+        await _salvarTarefas();
+      }
+    } catch (e) {
+      print('Erro ao buscar na API: $e');
+    }
+  }
+
+  Future<void> _editarTarefa(int indice, String tarefaAtualizada) async {
+    setState(() {
+      _tarefas[indice]['tarefa'] = tarefaAtualizada;
+    });
+    await _salvarTarefas();
+  }
+
+  Future<void> _removerTarefa(int indice) async {
+    setState(() {
+      _tarefas.removeAt(indice);
+    });
+    await _salvarTarefas();
+  }
+
+  void _alternarConclusao(int indice) {
+    setState(() {
+      _tarefas[indice]['completada'] = !_tarefas[indice]['completada'];
+    });
+    _salvarTarefas();
+  }
+
+  Future<String> _obterDataHoraAtual() async {
+    try {
+      final resultado = await plataforma.invokeMethod('getCurrentDateTime');
+      return resultado;
+    } on PlatformException catch (e) {
+      print("Falha ao obter data/hora: ${e.message}");
+      return DateTime.now().toIso8601String();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final List<Map<String, dynamic>> tarefasFiltradas =
+        _filtroCategoria == "Todas"
+            ? _tarefas
+            : _tarefas
+                .where((tarefa) => tarefa['categoria'] == _filtroCategoria)
+                .toList();
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          'Lista de Afazeres',
+          style: TextStyle(
+            fontFamily: 'SansSerif', // Fonte sans-serif
+            fontSize: 24.0,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        centerTitle: true, // Centraliza o título
+        backgroundColor: Colors.blue, // Fundo azul
+        actions: [
+          PopupMenuButton<String>(
+            onSelected: (valor) {
+              setState(() {
+                _filtroCategoria = valor;
+              });
+            },
+            itemBuilder: (context) {
+              final categorias =
+                  _tarefas.map((tarefa) => tarefa['categoria']).toSet();
+              return ['Todas', ...categorias].map((categoria) {
+                return PopupMenuItem<String>(
+                  value: categoria,
+                  child: Text(categoria),
+                );
+              }).toList();
+            },
+          )
+        ],
+      ),
+      body: ListView.builder(
+        padding: const EdgeInsets.all(8.0),
+        itemCount: tarefasFiltradas.length,
+        itemBuilder: (context, indice) {
+          final tarefa = tarefasFiltradas[indice];
+          return Card(
+            margin: const EdgeInsets.symmetric(vertical: 10.0),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12.0),
+            ),
+            elevation: 5.0,
+            child: ListTile(
+              contentPadding:
+                  EdgeInsets.symmetric(vertical: 15.0, horizontal: 20.0),
+              title: Text(
+                tarefa['tarefa'],
+                style: TextStyle(
+                  decoration: tarefa['completada']
+                      ? TextDecoration.lineThrough
+                      : TextDecoration.none,
+                  fontSize: 18.0,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              subtitle: Text(
+                'Categoria: ${tarefa['categoria']}',
+                style: TextStyle(fontSize: 14.0, color: Colors.grey[600]),
+              ),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: Icon(Icons.edit, color: Colors.blue),
+                    onPressed: () {
+                      _controleTarefa.text = tarefa['tarefa'];
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: Text('Editar Tarefa'),
+                          content: TextField(
+                            controller: _controleTarefa,
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () {
+                                Navigator.pop(context);
+                              },
+                              child: Text('Cancelar'),
+                            ),
+                            TextButton(
+                              onPressed: () async {
+                                await _editarTarefa(
+                                    indice, _controleTarefa.text);
+                                _controleTarefa.clear();
+                                Navigator.pop(context);
+                              },
+                              child: Text('Salvar'),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                  IconButton(
+                    icon: Icon(
+                      tarefa['completada']
+                          ? Icons.check_box
+                          : Icons.check_box_outline_blank,
+                      color: tarefa['completada'] ? Colors.green : Colors.grey,
+                    ),
+                    onPressed: () => _alternarConclusao(indice),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.delete, color: Colors.red),
+                    onPressed: () async => await _removerTarefa(indice),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          _controleTarefa.clear();
+          _controleCategoria.clear();
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: Text('Adicionar Tarefa'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: _controleTarefa,
+                    decoration: InputDecoration(labelText: 'Tarefa'),
+                  ),
+                  TextField(
+                    controller: _controleCategoria,
+                    decoration: InputDecoration(labelText: 'Categoria'),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  child: Text('Cancelar'),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    if (_controleTarefa.text.isNotEmpty &&
+                        _controleCategoria.text.isNotEmpty) {
+                      await _adicionarTarefa(
+                          _controleTarefa.text, _controleCategoria.text);
+                    }
+                    Navigator.pop(context);
+                  },
+                  child: Text('Adicionar'),
+                ),
+              ],
+            ),
+          );
+        },
+        child: Icon(Icons.add),
+        backgroundColor: Colors.blueAccent,
+        elevation: 8.0,
+      ),
+    );
+  }
+}
