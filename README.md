@@ -1,5 +1,6 @@
 # Lista de afazeres
 
+Código executado no VScode
 O código fornecido implementa uma aplicação Flutter simples chamada To-Do List, que permite ao usuário gerenciar uma lista de tarefas. A aplicação permite adicionar, editar, remover e marcar tarefas como concluídas. Além disso, ele inclui funcionalidades para persistir as tarefas localmente usando o pacote shared_preferences, garantindo que as tarefas sejam salvas mesmo após o fechamento do aplicativo.
 
 Funcionalidades principais:
